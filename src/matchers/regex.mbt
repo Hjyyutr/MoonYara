@@ -211,7 +211,7 @@ fn NfaRunner::add_active(self : NfaRunner, id : Int) -> Unit {
 /// Returns start positions where the pattern matches.
 pub fn match_regex(nfa : Nfa, data : Bytes) -> Array[Int] {
   let matches = []
-  let match_state_id = nfa.states.length() - 1 // The Match state index
+  let match_state_id = 0 // The Match state index is always 0
   
   for start_pos in 0..=data.length() {
     let runner = NfaRunner::new(nfa.states)
