@@ -1,0 +1,70 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "hjyyutr/moonyara/src"
+
+import {
+  "hjyyutr/moonyara/src/matchers",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compile_rule(YaraRule) -> CompiledRule
+
+pub fn compile_rules(String) -> CompiledRules raise @matchers.YaraError
+
+pub fn evaluate_condition(YaraCondition, MatchContext) -> Bool
+
+pub fn parse_rules(String) -> Array[YaraRule] raise @matchers.YaraError
+
+pub fn scan_bytes(CompiledRules, Bytes) -> Array[YaraMatch]
+
+// Errors
+
+// Types and methods
+pub(all) struct CompiledRule {
+  name : String
+  meta : Map[String, String]
+  literals : Array[(String, Bytes)]
+  hex_patterns : Array[(String, Array[@matchers.BytePattern])]
+  regex_patterns : Array[(String, @matchers.Nfa)]
+  condition : YaraCondition
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompiledRules {
+  rules : Array[CompiledRule]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct MatchContext {
+  matched_vars : Map[String, Bool]
+}
+
+pub(all) enum YaraCondition {
+  True
+  False
+  StringRef(String)
+  And(YaraCondition, YaraCondition)
+  Or(YaraCondition, YaraCondition)
+  Not(YaraCondition)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct YaraMatch {
+  rule_name : String
+  matches : Array[(String, Int)]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct YaraRule {
+  name : String
+  meta : Map[String, String]
+  strings : Array[YaraString]
+  condition : YaraCondition
+} derive(Eq, @debug.Debug)
+
+pub(all) enum YaraString {
+  Literal(String, Bytes)
+  Hex(String, Array[@matchers.BytePattern])
+  Regex(String, @matchers.Nfa)
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+
