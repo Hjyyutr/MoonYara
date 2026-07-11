@@ -1,13 +1,16 @@
-///| Private parser struct.
+///|
+/// Private parser struct.
 priv struct Parser {
   input : Array[Char]
   mut pos : Int
 }
 
+///|
 fn Parser::new(input : String) -> Parser {
   Parser::{ input: input.to_array(), pos: 0 }
 }
 
+///|
 fn Parser::expect(self : Parser, tok : String) -> Bool {
   self.skip_whitespace()
   let tok_chars = tok.to_array()
@@ -23,12 +26,15 @@ fn Parser::expect(self : Parser, tok : String) -> Bool {
   true
 }
 
+///|
 fn Parser::skip_whitespace(self : Parser) -> Unit {
   while self.pos < self.input.length() {
     let c = self.input[self.pos]
     if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
       self.pos += 1
-    } else if c == '/' && self.pos + 1 < self.input.length() && self.input[self.pos + 1] == '/' {
+    } else if c == '/' &&
+      self.pos + 1 < self.input.length() &&
+      self.input[self.pos + 1] == '/' {
       self.pos += 2
       while self.pos < self.input.length() && self.input[self.pos] != '\n' {
         self.pos += 1
@@ -39,30 +45,47 @@ fn Parser::skip_whitespace(self : Parser) -> Unit {
   }
 }
 
+///|
 fn Parser::parse_ident(self : Parser) -> String raise @matchers.YaraError {
   let start = self.pos
   while self.pos < self.input.length() {
     let c = self.input[self.pos]
-    if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' {
+    if (c >= 'A' && c <= 'Z') ||
+      (c >= 'a' && c <= 'z') ||
+      (c >= '0' && c <= '9') ||
+      c == '_' {
       self.pos += 1
     } else {
       break
     }
   }
   if self.pos == start {
-    raise @matchers.YaraError::ValueError("Expected identifier at index " + start.to_string())
+    raise @matchers.YaraError::ValueError(
+      "Expected identifier at index " + start.to_string(),
+    )
   }
   let chars = self.input[start:self.pos]
   String::from_array(chars.to_owned())
 }
 
+///|
 fn Parser::peek_word(self : Parser) -> String {
   let saved = self.pos
   self.skip_whitespace()
   let start = self.pos
   while self.pos < self.input.length() {
     let c = self.input[self.pos]
-    if c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '{' || c == '}' || c == '(' || c == ')' || c == '=' || c == ':' || c == ';' {
+    if c == ' ' ||
+      c == '\t' ||
+      c == '\r' ||
+      c == '\n' ||
+      c == '{' ||
+      c == '}' ||
+      c == '(' ||
+      c == ')' ||
+      c == '=' ||
+      c == ':' ||
+      c == ';' {
       break
     }
     self.pos += 1
@@ -73,9 +96,14 @@ fn Parser::peek_word(self : Parser) -> String {
   word
 }
 
-fn Parser::parse_string_literal(self : Parser) -> String raise @matchers.YaraError {
+///|
+fn Parser::parse_string_literal(
+  self : Parser,
+) -> String raise @matchers.YaraError {
   if self.pos >= self.input.length() || self.input[self.pos] != '"' {
-    raise @matchers.YaraError::ValueError("Expected string literal starting with '\"'")
+    raise @matchers.YaraError::ValueError(
+      "Expected string literal starting with '\"'",
+    )
   }
   self.pos += 1
   let start = self.pos
@@ -91,9 +119,12 @@ fn Parser::parse_string_literal(self : Parser) -> String raise @matchers.YaraErr
   s
 }
 
+///|
 fn Parser::parse_braced_hex(self : Parser) -> String raise @matchers.YaraError {
   if self.pos >= self.input.length() || self.input[self.pos] != '{' {
-    raise @matchers.YaraError::ValueError("Expected hex pattern starting with '{'")
+    raise @matchers.YaraError::ValueError(
+      "Expected hex pattern starting with '{'",
+    )
   }
   self.pos += 1
   let start = self.pos
@@ -109,9 +140,14 @@ fn Parser::parse_braced_hex(self : Parser) -> String raise @matchers.YaraError {
   h
 }
 
-fn Parser::parse_slashed_regex(self : Parser) -> String raise @matchers.YaraError {
+///|
+fn Parser::parse_slashed_regex(
+  self : Parser,
+) -> String raise @matchers.YaraError {
   if self.pos >= self.input.length() || self.input[self.pos] != '/' {
-    raise @matchers.YaraError::ValueError("Expected regular expression starting with '/'")
+    raise @matchers.YaraError::ValueError(
+      "Expected regular expression starting with '/'",
+    )
   }
   self.pos += 1
   let start = self.pos
@@ -127,7 +163,11 @@ fn Parser::parse_slashed_regex(self : Parser) -> String raise @matchers.YaraErro
   r
 }
 
-fn Parser::parse_meta_block(self : Parser, meta : Map[String, String]) -> Unit raise @matchers.YaraError {
+///|
+fn Parser::parse_meta_block(
+  self : Parser,
+  meta : Map[String, String],
+) -> Unit raise @matchers.YaraError {
   self.skip_whitespace()
   while self.pos < self.input.length() {
     let next_word = self.peek_word()
@@ -146,7 +186,10 @@ fn Parser::parse_meta_block(self : Parser, meta : Map[String, String]) -> Unit r
   }
 }
 
-fn Parser::parse_strings_block(self : Parser) -> Array[YaraString] raise @matchers.YaraError {
+///|
+fn Parser::parse_strings_block(
+  self : Parser,
+) -> Array[YaraString] raise @matchers.YaraError {
   let strings = []
   self.skip_whitespace()
   while self.pos < self.input.length() {
@@ -155,17 +198,23 @@ fn Parser::parse_strings_block(self : Parser) -> Array[YaraString] raise @matche
       break
     }
     if !self.expect("$") {
-      raise @matchers.YaraError::ValueError("Expected YARA string variable identifier starting with '$'")
+      raise @matchers.YaraError::ValueError(
+        "Expected YARA string variable identifier starting with '$'",
+      )
     }
     let var_name = "$" + self.parse_ident()
     self.skip_whitespace()
     if !self.expect("=") {
-      raise @matchers.YaraError::ValueError("Expected '=' after string variable name")
+      raise @matchers.YaraError::ValueError(
+        "Expected '=' after string variable name",
+      )
     }
     self.skip_whitespace()
     if self.pos < self.input.length() && self.input[self.pos] == '"' {
       let literal = self.parse_string_literal()
-      let bytes = Bytes::from_array(literal.to_array().map(fn(c) { c.to_int().to_byte() }))
+      let bytes = Bytes::from_array(
+        literal.to_array().map(fn(c) { c.to_int().to_byte() }),
+      )
       strings.push(YaraString::Literal(var_name, bytes))
     } else if self.pos < self.input.length() && self.input[self.pos] == '{' {
       let hex_str = self.parse_braced_hex()
@@ -176,20 +225,27 @@ fn Parser::parse_strings_block(self : Parser) -> Array[YaraString] raise @matche
       let nfa = @matchers.compile_regex(regex_str)
       strings.push(YaraString::Regex(var_name, nfa))
     } else {
-      raise @matchers.YaraError::ValueError("Unsupported pattern type for string: " + var_name)
+      raise @matchers.YaraError::ValueError(
+        "Unsupported pattern type for string: " + var_name,
+      )
     }
     self.skip_whitespace()
   }
   strings
 }
 
-fn Parser::parse_cond_atom(self : Parser) -> YaraCondition raise @matchers.YaraError {
+///|
+fn Parser::parse_cond_atom(
+  self : Parser,
+) -> YaraCondition raise @matchers.YaraError {
   self.skip_whitespace()
   if self.expect("(") {
     let node = self.parse_cond_or()
     self.skip_whitespace()
     if !self.expect(")") {
-      raise @matchers.YaraError::ValueError("Expected ')' in condition expression")
+      raise @matchers.YaraError::ValueError(
+        "Expected ')' in condition expression",
+      )
     }
     node
   } else if self.expect("true") {
@@ -201,11 +257,16 @@ fn Parser::parse_cond_atom(self : Parser) -> YaraCondition raise @matchers.YaraE
     YaraCondition::StringRef(name)
   } else {
     let next = self.peek_word()
-    raise @matchers.YaraError::ValueError("Expected term in condition, found: " + next)
+    raise @matchers.YaraError::ValueError(
+      "Expected term in condition, found: " + next,
+    )
   }
 }
 
-fn Parser::parse_cond_not(self : Parser) -> YaraCondition raise @matchers.YaraError {
+///|
+fn Parser::parse_cond_not(
+  self : Parser,
+) -> YaraCondition raise @matchers.YaraError {
   self.skip_whitespace()
   if self.expect("not") {
     let child = self.parse_cond_not()
@@ -215,7 +276,10 @@ fn Parser::parse_cond_not(self : Parser) -> YaraCondition raise @matchers.YaraEr
   }
 }
 
-fn Parser::parse_cond_and(self : Parser) -> YaraCondition raise @matchers.YaraError {
+///|
+fn Parser::parse_cond_and(
+  self : Parser,
+) -> YaraCondition raise @matchers.YaraError {
   let mut node = self.parse_cond_not()
   self.skip_whitespace()
   while self.expect("and") {
@@ -226,7 +290,10 @@ fn Parser::parse_cond_and(self : Parser) -> YaraCondition raise @matchers.YaraEr
   node
 }
 
-fn Parser::parse_cond_or(self : Parser) -> YaraCondition raise @matchers.YaraError {
+///|
+fn Parser::parse_cond_or(
+  self : Parser,
+) -> YaraCondition raise @matchers.YaraError {
   let mut node = self.parse_cond_and()
   self.skip_whitespace()
   while self.expect("or") {
@@ -237,10 +304,14 @@ fn Parser::parse_cond_or(self : Parser) -> YaraCondition raise @matchers.YaraErr
   node
 }
 
-fn Parser::parse_condition(self : Parser) -> YaraCondition raise @matchers.YaraError {
+///|
+fn Parser::parse_condition(
+  self : Parser,
+) -> YaraCondition raise @matchers.YaraError {
   self.parse_cond_or()
 }
 
+///|
 fn Parser::parse_rule(self : Parser) -> YaraRule raise @matchers.YaraError {
   self.skip_whitespace()
   if !self.expect("rule") {
@@ -252,11 +323,11 @@ fn Parser::parse_rule(self : Parser) -> YaraRule raise @matchers.YaraError {
   if !self.expect("{") {
     raise @matchers.YaraError::ValueError("Expected '{' to open rule body")
   }
-  
+
   let meta = Map([])
   let mut strings = []
   let mut condition = YaraCondition::True
-  
+
   self.skip_whitespace()
   while self.pos < self.input.length() {
     if self.expect("}") {
@@ -270,16 +341,21 @@ fn Parser::parse_rule(self : Parser) -> YaraRule raise @matchers.YaraError {
       condition = self.parse_condition()
     } else {
       let next = self.peek_word()
-      raise @matchers.YaraError::ValueError("Unexpected token in rule structure: " + next)
+      raise @matchers.YaraError::ValueError(
+        "Unexpected token in rule structure: " + next,
+      )
     }
     self.skip_whitespace()
   }
-  
+
   YaraRule::{ name, meta, strings, condition }
 }
 
-///| Top-level function to parse YARA rules text.
-pub fn parse_rules(rules_text : String) -> Array[YaraRule] raise @matchers.YaraError {
+///|
+/// Top-level function to parse YARA rules text.
+pub fn parse_rules(
+  rules_text : String,
+) -> Array[YaraRule] raise @matchers.YaraError {
   let parser = Parser::new(rules_text)
   let rules = []
   parser.skip_whitespace()

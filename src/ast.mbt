@@ -1,11 +1,13 @@
-///| AST representation of string matchers in YARA rules.
+///|
+/// AST representation of string matchers in YARA rules.
 pub(all) enum YaraString {
   Literal(String, Bytes) // name (e.g. "$a"), content
   Hex(String, Array[@matchers.BytePattern]) // name, hex patterns
   Regex(String, @matchers.Nfa) // name, compiled regular expression
 } derive(Eq, Debug)
 
-///| AST representation of condition expressions in YARA rules.
+///|
+/// AST representation of condition expressions in YARA rules.
 pub(all) enum YaraCondition {
   True
   False
@@ -15,7 +17,8 @@ pub(all) enum YaraCondition {
   Not(YaraCondition)
 } derive(Eq, Debug)
 
-///| Complete YARA rule AST.
+///|
+/// Complete YARA rule AST.
 pub(all) struct YaraRule {
   name : String
   meta : Map[String, String]

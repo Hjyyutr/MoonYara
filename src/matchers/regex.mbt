@@ -1,4 +1,5 @@
-///| AST representing a regular expression.
+///|
+/// AST representing a regular expression.
 pub(all) enum RegexAST {
   Empty
   Char(Char)
@@ -10,16 +11,19 @@ pub(all) enum RegexAST {
   Question(RegexAST)
 } derive(Eq, Debug)
 
-///| Parser state for converting regex strings into RegexAST.
+///|
+/// Parser state for converting regex strings into RegexAST.
 priv struct RegexParser {
   input : Array[Char]
   mut pos : Int
 }
 
+///|
 fn RegexParser::new(pattern : String) -> RegexParser {
   RegexParser::{ input: pattern.to_array(), pos: 0 }
 }
 
+///|
 fn RegexParser::parse_alter(self : RegexParser) -> RegexAST raise YaraError {
   let mut node = self.parse_concat()
   while self.pos < self.input.length() && self.input[self.pos] == '|' {
@@ -30,6 +34,7 @@ fn RegexParser::parse_alter(self : RegexParser) -> RegexAST raise YaraError {
   node
 }
 
+///|
 fn RegexParser::parse_concat(self : RegexParser) -> RegexAST raise YaraError {
   let mut node = RegexAST::Empty
   while self.pos < self.input.length() {
@@ -47,6 +52,7 @@ fn RegexParser::parse_concat(self : RegexParser) -> RegexAST raise YaraError {
   node
 }
 
+///|
 fn RegexParser::parse_factor(self : RegexParser) -> RegexAST raise YaraError {
   let mut node = self.parse_atom()
   if self.pos < self.input.length() {
@@ -65,6 +71,7 @@ fn RegexParser::parse_factor(self : RegexParser) -> RegexAST raise YaraError {
   node
 }
 
+///|
 fn RegexParser::parse_atom(self : RegexParser) -> RegexAST raise YaraError {
   if self.pos >= self.input.length() {
     raise YaraError::ValueError("Unexpected end of regex pattern")
@@ -90,24 +97,30 @@ fn RegexParser::parse_atom(self : RegexParser) -> RegexAST raise YaraError {
     self.pos += 1
     RegexAST::Char(esc)
   } else if c == '*' || c == '+' || c == '?' || c == '|' || c == ')' {
-    raise YaraError::ValueError("Unexpected special character in regex: " + c.to_string())
+    raise YaraError::ValueError(
+      "Unexpected special character in regex: " + c.to_string(),
+    )
   } else {
     self.pos += 1
     RegexAST::Char(c)
   }
 }
 
-///| Parses a regular expression string into AST.
+///|
+/// Parses a regular expression string into AST.
 pub fn parse_regex_ast(pattern : String) -> RegexAST raise YaraError {
   let parser = RegexParser::new(pattern)
   let ast = parser.parse_alter()
   if parser.pos < parser.input.length() {
-    raise YaraError::ValueError("Unexpected character in regex at index " + parser.pos.to_string())
+    raise YaraError::ValueError(
+      "Unexpected character in regex at index " + parser.pos.to_string(),
+    )
   }
   ast
 }
 
-///| NFA execution state operations.
+///|
+/// NFA execution state operations.
 pub(all) enum NfaOp {
   Match
   Char(Char, Int)
@@ -115,28 +128,33 @@ pub(all) enum NfaOp {
   Split(Int, Int)
 } derive(Eq, Debug)
 
-///| A single state in the NFA.
+///|
+/// A single state in the NFA.
 pub(all) struct NfaState {
   id : Int
   op : NfaOp
 } derive(Eq, Debug)
 
-///| Compiled NFA regex matcher.
+///|
+/// Compiled NFA regex matcher.
 pub(all) struct Nfa {
   states : Array[NfaState]
   start : Int
-}
+} derive(Eq, Debug)
 
+///|
 priv struct NfaBuilder {
   states : Array[NfaState]
 }
 
+///|
 fn NfaBuilder::add_state(self : NfaBuilder, op : NfaOp) -> Int {
   let id = self.states.length()
   self.states.push(NfaState::{ id, op })
   id
 }
 
+///|
 fn NfaBuilder::compile(self : NfaBuilder, ast : RegexAST, next : Int) -> Int {
   match ast {
     Empty => next
@@ -154,13 +172,19 @@ fn NfaBuilder::compile(self : NfaBuilder, ast : RegexAST, next : Int) -> Int {
     Star(node) => {
       let split_id = self.add_state(NfaOp::Split(0, next)) // placeholder
       let node_entry = self.compile(node, split_id)
-      self.states[split_id] = NfaState::{ id: split_id, op: NfaOp::Split(node_entry, next) }
+      self.states[split_id] = NfaState::{
+        id: split_id,
+        op: NfaOp::Split(node_entry, next),
+      }
       split_id
     }
     Plus(node) => {
       let split_id = self.add_state(NfaOp::Split(0, next)) // placeholder
       let node_entry = self.compile(node, split_id)
-      self.states[split_id] = NfaState::{ id: split_id, op: NfaOp::Split(node_entry, next) }
+      self.states[split_id] = NfaState::{
+        id: split_id,
+        op: NfaOp::Split(node_entry, next),
+      }
       node_entry
     }
     Question(node) => {
@@ -170,7 +194,8 @@ fn NfaBuilder::compile(self : NfaBuilder, ast : RegexAST, next : Int) -> Int {
   }
 }
 
-///| Compiles a regular expression string into NFA.
+///|
+/// Compiles a regular expression string into NFA.
 pub fn compile_regex(pattern : String) -> Nfa raise YaraError {
   let ast = parse_regex_ast(pattern)
   let builder = NfaBuilder::{ states: [] }
@@ -179,12 +204,14 @@ pub fn compile_regex(pattern : String) -> Nfa raise YaraError {
   Nfa::{ states: builder.states, start }
 }
 
+///|
 priv struct NfaRunner {
   states : Array[NfaState]
   active : Array[Int]
   visited : Array[Bool]
 }
 
+///|
 fn NfaRunner::new(states : Array[NfaState]) -> NfaRunner {
   NfaRunner::{
     states,
@@ -193,6 +220,7 @@ fn NfaRunner::new(states : Array[NfaState]) -> NfaRunner {
   }
 }
 
+///|
 fn NfaRunner::add_active(self : NfaRunner, id : Int) -> Unit {
   if self.visited[id] {
     return
@@ -207,21 +235,22 @@ fn NfaRunner::add_active(self : NfaRunner, id : Int) -> Unit {
   }
 }
 
-///| Runs regex matching on a byte stream.
+///|
+/// Runs regex matching on a byte stream.
 /// Returns start positions where the pattern matches.
 pub fn match_regex(nfa : Nfa, data : Bytes) -> Array[Int] {
   let matches = []
   let match_state_id = 0 // The Match state index is always 0
-  
-  for start_pos in 0..=data.length() {
+
+  for start_pos in 0..<=data.length() {
     let runner = NfaRunner::new(nfa.states)
     runner.add_active(nfa.start)
-    
+
     if runner.active.contains(match_state_id) {
       matches.push(start_pos)
       continue
     }
-    
+
     let mut pos = start_pos
     let mut is_matched = false
     let mut current_runner = runner
@@ -236,9 +265,7 @@ pub fn match_regex(nfa : Nfa, data : Bytes) -> Array[Int] {
               next_runner.add_active(next)
             }
           }
-          Any(next) => {
-            next_runner.add_active(next)
-          }
+          Any(next) => next_runner.add_active(next)
           _ => ()
         }
       }

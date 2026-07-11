@@ -1,28 +1,34 @@
-///| Compilation result holding multiple compiled rules.
+///|
+/// Compilation result holding multiple compiled rules.
 pub(all) struct CompiledRules {
   rules : Array[CompiledRule]
 } derive(Eq, Debug)
 
-///| Parses and compiles YARA rules text.
-pub fn compile_rules(rules_text : String) -> CompiledRules raise @matchers.YaraError {
+///|
+/// Parses and compiles YARA rules text.
+pub fn compile_rules(
+  rules_text : String,
+) -> CompiledRules raise @matchers.YaraError {
   let parsed = parse_rules(rules_text)
   let compiled = parsed.map(compile_rule)
   CompiledRules::{ rules: compiled }
 }
 
-///| Single match result detailing a matched rule and its matching string variable offsets.
+///|
+/// Single match result detailing a matched rule and its matching string variable offsets.
 pub(all) struct YaraMatch {
   rule_name : String
   matches : Array[(String, Int)] // variable name, match offset
 } derive(Eq, Debug)
 
-///| Scans data bytes against compiled rules.
+///|
+/// Scans data bytes against compiled rules.
 pub fn scan_bytes(compiled : CompiledRules, data : Bytes) -> Array[YaraMatch] {
   let results = []
   for rule in compiled.rules {
     let matched_vars = Map([])
     let detail_matches = []
-    
+
     // 1. Literal matching via Aho-Corasick
     if rule.literals.length() > 0 {
       let literal_bytes = rule.literals.map(fn(pair) { pair.1 })
@@ -35,7 +41,7 @@ pub fn scan_bytes(compiled : CompiledRules, data : Bytes) -> Array[YaraMatch] {
         detail_matches.push((var_name, offset))
       }
     }
-    
+
     // 2. Hex matching
     for hex_pair in rule.hex_patterns {
       let (var_name, pattern) = hex_pair
@@ -47,7 +53,7 @@ pub fn scan_bytes(compiled : CompiledRules, data : Bytes) -> Array[YaraMatch] {
         }
       }
     }
-    
+
     // 3. Regular expression matching
     for regex_pair in rule.regex_patterns {
       let (var_name, nfa) = regex_pair
@@ -59,14 +65,11 @@ pub fn scan_bytes(compiled : CompiledRules, data : Bytes) -> Array[YaraMatch] {
         }
       }
     }
-    
+
     // 4. Condition evaluation
-    let ctx = MatchContext::{ matched_vars }
+    let ctx = MatchContext::{ matched_vars, }
     if evaluate_condition(rule.condition, ctx) {
-      results.push(YaraMatch::{
-        rule_name: rule.name,
-        matches: detail_matches,
-      })
+      results.push(YaraMatch::{ rule_name: rule.name, matches: detail_matches })
     }
   }
   results
