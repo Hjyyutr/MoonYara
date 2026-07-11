@@ -1,0 +1,74 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "hjyyutr/moonyara/src/matchers"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compile_regex(String) -> Nfa raise YaraError
+
+pub fn match_hex(Array[BytePattern], Bytes) -> Array[Int]
+
+pub fn match_regex(Nfa, Bytes) -> Array[Int]
+
+pub fn parse_hex_pattern(String) -> Array[BytePattern] raise YaraError
+
+pub fn parse_regex_ast(String) -> RegexAST raise YaraError
+
+// Errors
+pub(all) suberror YaraError {
+  ValueError(String)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) struct AcNode {
+  children : Map[Byte, Int]
+  mut fail : Int
+  output : Array[Int]
+}
+
+pub(all) struct AhoCorasick {
+  nodes : Array[AcNode]
+  patterns : Array[Bytes]
+}
+pub fn AhoCorasick::match_aho_corasick(Self, Bytes) -> Array[(Int, Int)]
+pub fn AhoCorasick::new(Array[Bytes]) -> Self
+
+pub(all) enum BytePattern {
+  Byte(Byte)
+  Wildcard
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Nfa {
+  states : Array[NfaState]
+  start : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) enum NfaOp {
+  Match
+  Char(Char, Int)
+  Any(Int)
+  Split(Int, Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct NfaState {
+  id : Int
+  op : NfaOp
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RegexAST {
+  Empty
+  Char(Char)
+  Any
+  Concat(RegexAST, RegexAST)
+  Alter(RegexAST, RegexAST)
+  Star(RegexAST)
+  Plus(RegexAST)
+  Question(RegexAST)
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+
