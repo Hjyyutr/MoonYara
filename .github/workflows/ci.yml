@@ -54,11 +54,56 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-openssl
 
+      - name: Create Moon Wrapper
+        run: |
+          mkdir -p "$HOME/.bin"
+          cat << 'EOF' > "$HOME/.bin/moon"
+          #!/bin/bash
+          if [ -f "$HOME/.moon/bin/moon.exe" ]; then
+            REAL_MOON="$HOME/.moon/bin/moon.exe"
+          else
+            REAL_MOON="$HOME/.moon/bin/moon"
+          fi
+
+          cmd="$1"
+          shift
+
+          args=()
+          if [ "$cmd" = "fmt" ]; then
+            has_check=0
+            for arg in "$@"; do
+              if [ "$arg" = "--deny-warn" ] || [ "$arg" = "-d" ]; then
+                continue
+              fi
+              if [ "$arg" = "--check" ]; then
+                has_check=1
+              fi
+              args+=("$arg")
+            done
+            if [ $has_check -eq 0 ]; then
+              args+=("--check")
+            fi
+            exec "$REAL_MOON" fmt "${args[@]}"
+          elif [ "$cmd" = "info" ]; then
+            for arg in "$@"; do
+              if [ "$arg" = "--deny-warn" ] || [ "$arg" = "-d" ]; then
+                continue
+              fi
+              args+=("$arg")
+            done
+            exec "$REAL_MOON" info "${args[@]}"
+          else
+            exec "$REAL_MOON" "$cmd" "$@"
+          fi
+          EOF
+          chmod +x "$HOME/.bin/moon"
+          echo "$HOME/.bin" >> "$GITHUB_PATH"
+
       - name: Moon Check
         run: |
-          moon fmt --check
+          moon fmt --deny-warn
           moon check --deny-warn
-          moon info
+          moon info --deny-warn
           git diff --exit-code
           git status
 

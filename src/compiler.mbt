@@ -7,6 +7,7 @@ pub(all) struct CompiledRule {
   hex_patterns : Array[(String, Array[@matchers.BytePattern])]
   regex_patterns : Array[(String, @matchers.Nfa)]
   condition : YaraCondition
+  imports : Array[String]
 } derive(Eq, Debug)
 
 ///|
@@ -29,5 +30,6 @@ pub fn compile_rule(rule : YaraRule) -> CompiledRule {
     hex_patterns,
     regex_patterns,
     condition: rule.condition,
+    imports: rule.imports,
   }
 }

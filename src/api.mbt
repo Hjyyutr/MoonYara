@@ -67,13 +67,62 @@ pub fn scan_bytes(compiled : CompiledRules, data : Bytes) -> Array[YaraMatch] {
     }
 
     // 4. Condition evaluation
+    let pe = if contains(rule.imports, "pe") {
+      parse_pe(data)
+    } else {
+      PeInfo::default()
+    }
+    let elf = if contains(rule.imports, "elf") {
+      parse_elf(data)
+    } else {
+      ElfInfo::default()
+    }
+    let macho = if contains(rule.imports, "macho") {
+      parse_macho(data)
+    } else {
+      MachOInfo::default()
+    }
+    let zip = if contains(rule.imports, "zip") {
+      parse_zip(data)
+    } else {
+      ZipInfo::default()
+    }
     let all_vars = rule.literals.map(fn(pair) { pair.0 }) +
       rule.hex_patterns.map(fn(pair) { pair.0 }) +
       rule.regex_patterns.map(fn(pair) { pair.0 })
-    let ctx = MatchContext::{ matched_vars, all_vars, filesize: data.length() }
+    let ctx = MatchContext::{
+      matched_vars,
+      all_vars,
+      filesize: data.length(),
+      pe,
+      elf,
+      macho,
+      zip,
+      data,
+    }
     if evaluate_condition(rule.condition, ctx) {
       results.push(YaraMatch::{ rule_name: rule.name, matches: detail_matches })
     }
   }
   results
+}
+
+///|
+fn contains(arr : Array[String], elem : String) -> Bool {
+  for x in arr {
+    if x == elem {
+      return true
+    }
+  }
+  false
+}
+
+///|
+/// Debug prints compiled rules summary.
+pub fn debug_print_rules(rules : Array[CompiledRule]) -> Unit {
+  for r in rules {
+    println(
+      "Rule: \{r.name}, strings: \{r.literals.length()}, imports: \{r.imports.length()}",
+    )
+  }
 }

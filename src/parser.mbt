@@ -241,15 +241,96 @@ fn Parser::parse_expr_primary(
   self : Parser,
 ) -> YaraExpression raise @matchers.YaraError {
   self.skip_whitespace()
-  if self.expect("filesize") {
-    YaraExpression::FileSize
-  } else if self.expect("(") {
+  if self.expect("(") {
     let expr = self.parse_expr_add()
     self.skip_whitespace()
     if !self.expect(")") {
       raise @matchers.YaraError::ValueError("Expected ')' in expression")
     }
     expr
+  } else if self.expect("\"") {
+    let start = self.pos
+    while self.pos < self.input.length() && self.input[self.pos] != '"' {
+      self.pos += 1
+    }
+    if self.pos >= self.input.length() {
+      raise @matchers.YaraError::ValueError(
+        "Unterminated string literal in expression",
+      )
+    }
+    let chars = self.input[start:self.pos]
+    self.pos += 1 // skip closing quote
+    let str_val = String::from_array(chars.to_owned())
+    YaraExpression::StringLiteral(str_val)
+  } else if self.pos < self.input.length() &&
+    (
+      (self.input[self.pos] >= 'A' && self.input[self.pos] <= 'Z') ||
+      (self.input[self.pos] >= 'a' && self.input[self.pos] <= 'z')
+    ) {
+    let ident = self.parse_ident()
+    if ident == "filesize" {
+      YaraExpression::FileSize
+    } else if ident == "pe" ||
+      ident == "elf" ||
+      ident == "macho" ||
+      ident == "zip" ||
+      ident == "math" ||
+      ident == "hash" {
+      self.skip_whitespace()
+      if !self.expect(".") {
+        raise @matchers.YaraError::ValueError(
+          "Expected '.' after module name " + ident,
+        )
+      }
+      self.skip_whitespace()
+      let member_name = self.parse_ident()
+      self.skip_whitespace()
+      if self.expect("(") {
+        let args = []
+        self.skip_whitespace()
+        if !self.expect(")") {
+          while true {
+            let arg = self.parse_expr_add()
+            args.push(arg)
+            self.skip_whitespace()
+            if self.expect(")") {
+              break
+            }
+            if !self.expect(",") {
+              raise @matchers.YaraError::ValueError(
+                "Expected ',' or ')' in argument list",
+              )
+            }
+            self.skip_whitespace()
+          }
+        }
+        YaraExpression::ModuleMethodCall(ident, member_name, args)
+      } else if self.expect("[") {
+        self.skip_whitespace()
+        let index_expr = self.parse_expr_add()
+        self.skip_whitespace()
+        if !self.expect("]") {
+          raise @matchers.YaraError::ValueError(
+            "Expected ']' in index expression",
+          )
+        }
+        self.skip_whitespace()
+        if !self.expect(".") {
+          raise @matchers.YaraError::ValueError("Expected '.' after index")
+        }
+        self.skip_whitespace()
+        let field_name = self.parse_ident()
+        YaraExpression::ModuleMemberIndex(
+          ident, member_name, index_expr, field_name,
+        )
+      } else {
+        YaraExpression::ModuleMember(ident, member_name)
+      }
+    } else {
+      raise @matchers.YaraError::ValueError(
+        "Unknown identifier in expression: " + ident,
+      )
+    }
   } else {
     let start = self.pos
     while self.pos < self.input.length() {
@@ -347,15 +428,63 @@ fn Parser::parse_cond_atom(
   self : Parser,
 ) -> YaraCondition raise @matchers.YaraError {
   self.skip_whitespace()
+  let saved = self.pos
   if self.expect("(") {
-    let node = self.parse_cond_or()
-    self.skip_whitespace()
-    if !self.expect(")") {
-      raise @matchers.YaraError::ValueError(
-        "Expected ')' in condition expression",
-      )
+    let is_cond = try {
+      let _ = self.parse_cond_or()
+      self.skip_whitespace()
+      self.expect(")")
+    } catch {
+      _ => false
     }
-    node
+    if is_cond {
+      self.pos = saved
+      let _ = self.expect("(")
+      let node = self.parse_cond_or()
+      self.skip_whitespace()
+      if !self.expect(")") {
+        raise @matchers.YaraError::ValueError(
+          "Expected ')' in condition expression",
+        )
+      }
+      node
+    } else {
+      // Backtrack and fall through to let expression parser handle it!
+      self.pos = saved
+      let left = self.parse_expr_add()
+      self.skip_whitespace()
+      if self.expect("==") {
+        self.skip_whitespace()
+        let right = self.parse_expr_add()
+        YaraCondition::Compare(Eq, left, right)
+      } else if self.expect("!=") {
+        self.skip_whitespace()
+        let right = self.parse_expr_add()
+        YaraCondition::Compare(NotEq, left, right)
+      } else if self.expect("<=") {
+        self.skip_whitespace()
+        let right = self.parse_expr_add()
+        YaraCondition::Compare(LtEq, left, right)
+      } else if self.expect("<") {
+        self.skip_whitespace()
+        let right = self.parse_expr_add()
+        YaraCondition::Compare(Lt, left, right)
+      } else if self.expect(">=") {
+        self.skip_whitespace()
+        let right = self.parse_expr_add()
+        YaraCondition::Compare(GtEq, left, right)
+      } else if self.expect(">") {
+        self.skip_whitespace()
+        let right = self.parse_expr_add()
+        YaraCondition::Compare(Gt, left, right)
+      } else {
+        let next = self.peek_word()
+        raise @matchers.YaraError::ValueError(
+          "Expected comparison operator after parenthesized expression, found: " +
+          next,
+        )
+      }
+    }
   } else if self.expect("true") {
     YaraCondition::True
   } else if self.expect("false") {
@@ -528,7 +657,7 @@ fn Parser::parse_rule(self : Parser) -> YaraRule raise @matchers.YaraError {
     self.skip_whitespace()
   }
 
-  YaraRule::{ name, meta, strings, condition }
+  YaraRule::{ name, meta, strings, condition, imports: [] }
 }
 
 ///|
@@ -538,11 +667,20 @@ pub fn parse_rules(
 ) -> Array[YaraRule] raise @matchers.YaraError {
   let parser = Parser::new(rules_text)
   let rules = []
+  let imports = []
   parser.skip_whitespace()
   while parser.pos < parser.input.length() {
-    let r = parser.parse_rule()
-    rules.push(r)
-    parser.skip_whitespace()
+    if parser.expect("import") {
+      parser.skip_whitespace()
+      let mod_name = parser.parse_string_literal()
+      imports.push(mod_name)
+      parser.skip_whitespace()
+    } else {
+      let r = parser.parse_rule()
+      r.imports = imports.map(fn(x) { x })
+      rules.push(r)
+      parser.skip_whitespace()
+    }
   }
   rules
 }

@@ -17,13 +17,25 @@ pub(all) enum CompareOp {
 } derive(Eq, Debug)
 
 ///|
+pub(all) enum YaraValue {
+  IntVal(Int)
+  StrVal(String)
+  BoolVal(Bool)
+  NoneVal
+} derive(Eq, Debug)
+
+///|
 pub(all) enum YaraExpression {
   FileSize
   IntLiteral(Int)
+  StringLiteral(String)
   Add(YaraExpression, YaraExpression)
   Sub(YaraExpression, YaraExpression)
   Mul(YaraExpression, YaraExpression)
   Div(YaraExpression, YaraExpression)
+  ModuleMember(String, String) // e.g. pe.entry_point
+  ModuleMemberIndex(String, String, YaraExpression, String) // e.g. pe.sections[0].name
+  ModuleMethodCall(String, String, Array[YaraExpression]) // e.g. math.entropy(0, filesize)
 } derive(Eq, Debug)
 
 ///|
@@ -48,4 +60,5 @@ pub(all) struct YaraRule {
   meta : Map[String, String]
   strings : Array[YaraString]
   condition : YaraCondition
+  mut imports : Array[String]
 } derive(Eq, Debug)
