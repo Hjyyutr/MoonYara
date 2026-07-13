@@ -7,6 +7,26 @@ pub(all) enum YaraString {
 } derive(Eq, Debug)
 
 ///|
+pub(all) enum CompareOp {
+  Eq
+  NotEq
+  Lt
+  LtEq
+  Gt
+  GtEq
+} derive(Eq, Debug)
+
+///|
+pub(all) enum YaraExpression {
+  FileSize
+  IntLiteral(Int)
+  Add(YaraExpression, YaraExpression)
+  Sub(YaraExpression, YaraExpression)
+  Mul(YaraExpression, YaraExpression)
+  Div(YaraExpression, YaraExpression)
+} derive(Eq, Debug)
+
+///|
 /// AST representation of condition expressions in YARA rules.
 pub(all) enum YaraCondition {
   True
@@ -15,6 +35,10 @@ pub(all) enum YaraCondition {
   And(YaraCondition, YaraCondition)
   Or(YaraCondition, YaraCondition)
   Not(YaraCondition)
+  Compare(CompareOp, YaraExpression, YaraExpression)
+  AnyOfThem
+  AllOfThem
+  Of(YaraExpression, Array[String])
 } derive(Eq, Debug)
 
 ///|

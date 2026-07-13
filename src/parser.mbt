@@ -235,6 +235,114 @@ fn Parser::parse_strings_block(
 }
 
 ///|
+
+///|
+fn Parser::parse_expr_primary(
+  self : Parser,
+) -> YaraExpression raise @matchers.YaraError {
+  self.skip_whitespace()
+  if self.expect("filesize") {
+    YaraExpression::FileSize
+  } else if self.expect("(") {
+    let expr = self.parse_expr_add()
+    self.skip_whitespace()
+    if !self.expect(")") {
+      raise @matchers.YaraError::ValueError("Expected ')' in expression")
+    }
+    expr
+  } else {
+    let start = self.pos
+    while self.pos < self.input.length() {
+      let c = self.input[self.pos]
+      if c >= '0' && c <= '9' {
+        self.pos += 1
+      } else {
+        break
+      }
+    }
+    if self.pos == start {
+      raise @matchers.YaraError::ValueError(
+        "Expected integer literal or filesize",
+      )
+    }
+    let num_chars = self.input[start:self.pos]
+    let num_str = String::from_array(num_chars.to_owned())
+    let mut val = 0
+    for i in 0..<num_str.length() {
+      let digit = num_str[i].to_int() - 48
+      val = val * 10 + digit
+    }
+    YaraExpression::IntLiteral(val)
+  }
+}
+
+///|
+fn Parser::parse_expr_mul(
+  self : Parser,
+) -> YaraExpression raise @matchers.YaraError {
+  let mut node = self.parse_expr_primary()
+  self.skip_whitespace()
+  while true {
+    if self.expect("*") {
+      let right = self.parse_expr_primary()
+      node = YaraExpression::Mul(node, right)
+    } else if self.expect("/") {
+      let right = self.parse_expr_primary()
+      node = YaraExpression::Div(node, right)
+    } else {
+      break
+    }
+    self.skip_whitespace()
+  }
+  node
+}
+
+///|
+fn Parser::parse_expr_add(
+  self : Parser,
+) -> YaraExpression raise @matchers.YaraError {
+  let mut node = self.parse_expr_mul()
+  self.skip_whitespace()
+  while true {
+    if self.expect("+") {
+      let right = self.parse_expr_mul()
+      node = YaraExpression::Add(node, right)
+    } else if self.expect("-") {
+      let right = self.parse_expr_mul()
+      node = YaraExpression::Sub(node, right)
+    } else {
+      break
+    }
+    self.skip_whitespace()
+  }
+  node
+}
+
+///|
+fn Parser::parse_string_list(
+  self : Parser,
+) -> Array[String] raise @matchers.YaraError {
+  let list = []
+  self.skip_whitespace()
+  while self.pos < self.input.length() {
+    if !self.expect("$") {
+      raise @matchers.YaraError::ValueError(
+        "Expected string variable in list starting with '$'",
+      )
+    }
+    let name = "$" + self.parse_ident()
+    list.push(name)
+    self.skip_whitespace()
+    if self.expect(",") {
+      self.skip_whitespace()
+    } else {
+      break
+    }
+  }
+  list
+}
+
+///|
 fn Parser::parse_cond_atom(
   self : Parser,
 ) -> YaraCondition raise @matchers.YaraError {
@@ -252,14 +360,86 @@ fn Parser::parse_cond_atom(
     YaraCondition::True
   } else if self.expect("false") {
     YaraCondition::False
+  } else if self.expect("any of them") {
+    YaraCondition::AnyOfThem
+  } else if self.expect("all of them") {
+    YaraCondition::AllOfThem
+  } else if self.peek_word() == "any" || self.peek_word() == "all" {
+    let word = self.peek_word()
+    let count_expr = if word == "any" {
+      let _ = self.expect("any")
+      YaraExpression::IntLiteral(1)
+    } else {
+      let _ = self.expect("all")
+      YaraExpression::IntLiteral(-1)
+    }
+    self.skip_whitespace()
+    if !self.expect("of") {
+      raise @matchers.YaraError::ValueError(
+        "Expected 'of' keyword after quantifier",
+      )
+    }
+    self.skip_whitespace()
+    if !self.expect("(") {
+      raise @matchers.YaraError::ValueError("Expected '(' after 'of'")
+    }
+    let list = self.parse_string_list()
+    self.skip_whitespace()
+    if !self.expect(")") {
+      raise @matchers.YaraError::ValueError("Expected ')' after string list")
+    }
+    let final_count = match count_expr {
+      IntLiteral(-1) => YaraExpression::IntLiteral(list.length())
+      _ => count_expr
+    }
+    YaraCondition::Of(final_count, list)
   } else if self.expect("$") {
     let name = "$" + self.parse_ident()
     YaraCondition::StringRef(name)
   } else {
-    let next = self.peek_word()
-    raise @matchers.YaraError::ValueError(
-      "Expected term in condition, found: " + next,
-    )
+    let left = self.parse_expr_add()
+    self.skip_whitespace()
+    if self.expect("==") {
+      self.skip_whitespace()
+      let right = self.parse_expr_add()
+      YaraCondition::Compare(Eq, left, right)
+    } else if self.expect("!=") {
+      self.skip_whitespace()
+      let right = self.parse_expr_add()
+      YaraCondition::Compare(NotEq, left, right)
+    } else if self.expect("<=") {
+      self.skip_whitespace()
+      let right = self.parse_expr_add()
+      YaraCondition::Compare(LtEq, left, right)
+    } else if self.expect("<") {
+      self.skip_whitespace()
+      let right = self.parse_expr_add()
+      YaraCondition::Compare(Lt, left, right)
+    } else if self.expect(">=") {
+      self.skip_whitespace()
+      let right = self.parse_expr_add()
+      YaraCondition::Compare(GtEq, left, right)
+    } else if self.expect(">") {
+      self.skip_whitespace()
+      let right = self.parse_expr_add()
+      YaraCondition::Compare(Gt, left, right)
+    } else if self.expect("of") {
+      self.skip_whitespace()
+      if !self.expect("(") {
+        raise @matchers.YaraError::ValueError("Expected '(' after 'of'")
+      }
+      let list = self.parse_string_list()
+      self.skip_whitespace()
+      if !self.expect(")") {
+        raise @matchers.YaraError::ValueError("Expected ')' after string list")
+      }
+      YaraCondition::Of(left, list)
+    } else {
+      let next = self.peek_word()
+      raise @matchers.YaraError::ValueError(
+        "Expected comparison operator or term in condition, found: " + next,
+      )
+    }
   }
 }
 

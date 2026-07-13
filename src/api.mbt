@@ -67,7 +67,10 @@ pub fn scan_bytes(compiled : CompiledRules, data : Bytes) -> Array[YaraMatch] {
     }
 
     // 4. Condition evaluation
-    let ctx = MatchContext::{ matched_vars, }
+    let all_vars = rule.literals.map(fn(pair) { pair.0 }) +
+      rule.hex_patterns.map(fn(pair) { pair.0 }) +
+      rule.regex_patterns.map(fn(pair) { pair.0 })
+    let ctx = MatchContext::{ matched_vars, all_vars, filesize: data.length() }
     if evaluate_condition(rule.condition, ctx) {
       results.push(YaraMatch::{ rule_name: rule.name, matches: detail_matches })
     }

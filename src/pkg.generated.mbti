@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "hjyyutr/moonyara/src"
+package "Hjyyutr/moonyara/src"
 
 import {
-  "hjyyutr/moonyara/src/matchers",
+  "Hjyyutr/moonyara/src/matchers",
   "moonbitlang/core/debug",
 }
 
@@ -13,6 +13,8 @@ pub fn compile_rules(String) -> CompiledRules raise @matchers.YaraError
 
 pub fn evaluate_condition(YaraCondition, MatchContext) -> Bool
 
+pub fn evaluate_expression(YaraExpression, MatchContext) -> Int
+
 pub fn parse_rules(String) -> Array[YaraRule] raise @matchers.YaraError
 
 pub fn scan_bytes(CompiledRules, Bytes) -> Array[YaraMatch]
@@ -20,6 +22,15 @@ pub fn scan_bytes(CompiledRules, Bytes) -> Array[YaraMatch]
 // Errors
 
 // Types and methods
+pub(all) enum CompareOp {
+  Eq
+  NotEq
+  Lt
+  LtEq
+  Gt
+  GtEq
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CompiledRule {
   name : String
   meta : Map[String, String]
@@ -35,6 +46,8 @@ pub(all) struct CompiledRules {
 
 pub(all) struct MatchContext {
   matched_vars : Map[String, Bool]
+  all_vars : Array[String]
+  filesize : Int
 }
 
 pub(all) enum YaraCondition {
@@ -44,6 +57,19 @@ pub(all) enum YaraCondition {
   And(YaraCondition, YaraCondition)
   Or(YaraCondition, YaraCondition)
   Not(YaraCondition)
+  Compare(CompareOp, YaraExpression, YaraExpression)
+  AnyOfThem
+  AllOfThem
+  Of(YaraExpression, Array[String])
+} derive(Eq, @debug.Debug)
+
+pub(all) enum YaraExpression {
+  FileSize
+  IntLiteral(Int)
+  Add(YaraExpression, YaraExpression)
+  Sub(YaraExpression, YaraExpression)
+  Mul(YaraExpression, YaraExpression)
+  Div(YaraExpression, YaraExpression)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct YaraMatch {

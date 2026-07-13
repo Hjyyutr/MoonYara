@@ -1,5 +1,5 @@
 import {
-  "hjyyutr/moonyara/src",
+  "Hjyyutr/moonyara/src",
   "moonbitlang/core/env",
   "moonbitlang/x/fs",
 }
