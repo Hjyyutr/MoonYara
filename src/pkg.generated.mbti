@@ -1,21 +1,45 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Hjyyutr/moonyara/src"
+package "hjyyutr/moonyara/src"
 
 import {
-  "Hjyyutr/moonyara/src/matchers",
+  "hjyyutr/moonyara/src/matchers",
   "moonbitlang/core/debug",
 }
 
 // Values
+pub fn base64_decode(String) -> Bytes
+
+pub fn base64_encode(Bytes, Int, Int) -> String
+
+pub fn calculate_crc32(Bytes, Int, Int) -> Int
+
+pub fn calculate_deviation(Bytes, Int, Int, Double) -> Double
+
+pub fn calculate_entropy(Bytes, Int, Int) -> Double
+
+pub fn calculate_md5(Bytes, Int, Int) -> String
+
+pub fn calculate_mean(Bytes, Int, Int) -> Double
+
 pub fn compile_rule(YaraRule) -> CompiledRule
 
 pub fn compile_rules(String) -> CompiledRules raise @matchers.YaraError
 
+pub fn debug_print_rules(Array[CompiledRule]) -> Unit
+
 pub fn evaluate_condition(YaraCondition, MatchContext) -> Bool
 
-pub fn evaluate_expression(YaraExpression, MatchContext) -> Int
+pub fn evaluate_expression(YaraExpression, MatchContext) -> YaraValue
+
+pub fn parse_elf(Bytes) -> ElfInfo
+
+pub fn parse_macho(Bytes) -> MachOInfo
+
+pub fn parse_pe(Bytes) -> PeInfo
 
 pub fn parse_rules(String) -> Array[YaraRule] raise @matchers.YaraError
+
+pub fn parse_zip(Bytes) -> ZipInfo
 
 pub fn scan_bytes(CompiledRules, Bytes) -> Array[YaraMatch]
 
@@ -38,17 +62,183 @@ pub(all) struct CompiledRule {
   hex_patterns : Array[(String, Array[@matchers.BytePattern])]
   regex_patterns : Array[(String, @matchers.Nfa)]
   condition : YaraCondition
+  imports : Array[String]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CompiledRules {
   rules : Array[CompiledRule]
 } derive(Eq, @debug.Debug)
 
+pub(all) struct ElfHeader {
+  class_ : Int
+  data_encoding : Int
+  version : Int
+  os_abi : Int
+  abi_version : Int
+  type_ : Int
+  machine : Int
+  entry_point : Int64
+  ph_off : Int64
+  sh_off : Int64
+  flags : Int
+  eh_size : Int
+  ph_ent_size : Int
+  ph_num : Int
+  sh_ent_size : Int
+  sh_num : Int
+  sh_str_nd : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ElfInfo {
+  is_elf : Bool
+  header : ElfHeader
+  program_headers : Array[ElfProgramHeader]
+  sections : Array[ElfSectionHeader]
+  entry_point : Int64
+  number_of_sections : Int
+  type_ : Int
+  machine : Int
+} derive(Eq, @debug.Debug)
+pub fn ElfInfo::default() -> Self
+
+pub(all) struct ElfProgramHeader {
+  type_ : Int
+  flags : Int
+  offset : Int64
+  vaddr : Int64
+  paddr : Int64
+  filesz : Int64
+  memsz : Int64
+  align : Int64
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ElfSectionHeader {
+  name_index : Int
+  type_ : Int
+  flags : Int64
+  addr : Int64
+  offset : Int64
+  size : Int64
+  link : Int
+  info : Int
+  addralign : Int64
+  entsize : Int64
+} derive(Eq, @debug.Debug)
+
+pub(all) struct HashInfo {
+  is_active : Bool
+}
+pub fn HashInfo::default() -> Self
+
+pub(all) struct MachOHeader {
+  magic : Int
+  cputype : Int
+  cpusubtype : Int
+  filetype : Int
+  ncmds : Int
+  sizeofcmds : Int
+  flags : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) struct MachOInfo {
+  is_macho : Bool
+  header : MachOHeader
+  segments : Array[MachOSegment]
+  cputype : Int
+  filetype : Int
+} derive(Eq, @debug.Debug)
+pub fn MachOInfo::default() -> Self
+
+pub(all) struct MachOSegment {
+  segname : String
+  vmaddr : Int64
+  vmsize : Int64
+  fileoff : Int64
+  filesize : Int64
+  nsects : Int
+} derive(Eq, @debug.Debug)
+
 pub(all) struct MatchContext {
   matched_vars : Map[String, Bool]
   all_vars : Array[String]
   filesize : Int
+  pe : PeInfo
+  elf : ElfInfo
+  macho : MachOInfo
+  zip : ZipInfo
+  data : Bytes
 }
+
+pub(all) struct MathInfo {
+  is_active : Bool
+}
+pub fn MathInfo::default() -> Self
+
+pub(all) struct PeHeader {
+  machine : Int
+  number_of_sections : Int
+  time_date_stamp : Int
+  pointer_to_symbol_table : Int
+  number_of_symbols : Int
+  size_of_optional_header : Int
+  characteristics : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) struct PeInfo {
+  is_pe : Bool
+  header : PeHeader
+  optional_header : PeOptionalHeader
+  sections : Array[PeSection]
+  entry_point : Int
+  number_of_sections : Int
+  machine : Int
+} derive(Eq, @debug.Debug)
+pub fn PeInfo::default() -> Self
+
+pub(all) struct PeOptionalHeader {
+  magic : Int
+  major_linker_version : Int
+  minor_linker_version : Int
+  size_of_code : Int
+  size_of_initialized_data : Int
+  size_of_uninitialized_data : Int
+  address_of_entry_point : Int
+  base_of_code : Int
+  image_base : Int64
+  section_alignment : Int
+  file_alignment : Int
+  major_operating_system_version : Int
+  minor_operating_system_version : Int
+  major_image_version : Int
+  minor_image_version : Int
+  major_subsystem_version : Int
+  minor_subsystem_version : Int
+  win32_version_value : Int
+  size_of_image : Int
+  size_of_headers : Int
+  check_sum : Int
+  subsystem : Int
+  dll_characteristics : Int
+  size_of_stack_reserve : Int64
+  size_of_stack_commit : Int64
+  size_of_heap_reserve : Int64
+  size_of_heap_commit : Int64
+  loader_flags : Int
+  number_of_rva_and_sizes : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) struct PeSection {
+  name : String
+  virtual_size : Int
+  virtual_address : Int
+  size_of_raw_data : Int
+  pointer_to_raw_data : Int
+  pointer_to_relocations : Int
+  pointer_to_linenumbers : Int
+  number_of_relocations : Int
+  number_of_linenumbers : Int
+  characteristics : Int
+} derive(Eq, @debug.Debug)
 
 pub(all) enum YaraCondition {
   True
@@ -66,10 +256,14 @@ pub(all) enum YaraCondition {
 pub(all) enum YaraExpression {
   FileSize
   IntLiteral(Int)
+  StringLiteral(String)
   Add(YaraExpression, YaraExpression)
   Sub(YaraExpression, YaraExpression)
   Mul(YaraExpression, YaraExpression)
   Div(YaraExpression, YaraExpression)
+  ModuleMember(String, String)
+  ModuleMemberIndex(String, String, YaraExpression, String)
+  ModuleMethodCall(String, String, Array[YaraExpression])
 } derive(Eq, @debug.Debug)
 
 pub(all) struct YaraMatch {
@@ -82,12 +276,34 @@ pub(all) struct YaraRule {
   meta : Map[String, String]
   strings : Array[YaraString]
   condition : YaraCondition
+  mut imports : Array[String]
 } derive(Eq, @debug.Debug)
 
 pub(all) enum YaraString {
   Literal(String, Bytes)
   Hex(String, Array[@matchers.BytePattern])
   Regex(String, @matchers.Nfa)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum YaraValue {
+  IntVal(Int)
+  StrVal(String)
+  BoolVal(Bool)
+  NoneVal
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ZipInfo {
+  is_zip : Bool
+  files : Array[ZipLocalFile]
+  number_of_files : Int
+} derive(Eq, @debug.Debug)
+pub fn ZipInfo::default() -> Self
+
+pub(all) struct ZipLocalFile {
+  filename : String
+  compressed_size : Int
+  uncompressed_size : Int
+  compression_method : Int
 } derive(Eq, @debug.Debug)
 
 // Type aliases

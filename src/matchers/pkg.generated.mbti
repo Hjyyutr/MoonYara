@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Hjyyutr/moonyara/src/matchers"
+package "hjyyutr/moonyara/src/matchers"
 
 import {
   "moonbitlang/core/debug",
