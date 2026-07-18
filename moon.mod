@@ -1,6 +1,6 @@
-name = "Hjyyutr/moonyara"
+name = "hjyyutr/moonyara"
 
-version = "0.1.1"
+version = "0.1.2"
 
 readme = "README.md"
 
