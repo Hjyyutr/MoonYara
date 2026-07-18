@@ -649,3 +649,88 @@ test "pe section out of bounds scanning safety" {
   let matches = scan_bytes(compiled, bytes)
   debug_inspect(matches.map(fn(m) { m.rule_name }), content="[]")
 }
+
+///|
+test "multiple rules compilation and scanning" {
+  let rule_text =
+    #|rule FirstRule {
+    #|  strings:
+    #|    $a = "hello"
+    #|  condition:
+    #|    $a
+    #|}
+    #|rule SecondRule {
+    #|  strings:
+    #|    $b = "world"
+    #|  condition:
+    #|    $b
+    #|}
+
+  let compiled = try! compile_rules(rule_text)
+  let bytes = b"hello test world"
+  let matches = scan_bytes(compiled, bytes)
+  let matched_names = matches.map(fn(m) { m.rule_name })
+  debug_inspect(matched_names, content="[\"FirstRule\", \"SecondRule\"]")
+}
+
+///|
+test "abnormal and invalid rule syntax handling" {
+  // Test case 1: Mismatched parentheses in condition block
+  let invalid_parens =
+    #|rule InvalidMismatchedParens {
+    #|  condition:
+    #|    ( 1 + 2
+    #|}
+  let res1 = try {
+    let _ = compile_rules(invalid_parens)
+    false
+  } catch {
+    _ => true
+  }
+  inspect(res1, content="true")
+
+  // Test case 2: Missing rule name
+  let missing_name =
+    #|rule {
+    #|  condition:
+    #|    true
+    #|}
+  let res2 = try {
+    let _ = compile_rules(missing_name)
+    false
+  } catch {
+    _ => true
+  }
+  inspect(res2, content="true")
+
+  // Test case 3: Invalid token/keyword inside condition block
+  let unknown_token =
+    #|rule UnknownToken {
+    #|  condition:
+    #|    some_invalid_token_xyz
+    #|}
+  let res3 = try {
+    let _ = compile_rules(unknown_token)
+    false
+  } catch {
+    _ => true
+  }
+  inspect(res3, content="true")
+
+  // Test case 4: Unclosed string literal in string declaration
+  let unclosed_str =
+    #|rule UnclosedString {
+    #|  strings:
+    #|    $a = "hello
+    #|  condition:
+    #|    $a
+    #|}
+  let res4 = try {
+    let _ = compile_rules(unclosed_str)
+    false
+  } catch {
+    _ => true
+  }
+  inspect(res4, content="true")
+}
+
