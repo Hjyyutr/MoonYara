@@ -86,6 +86,78 @@ test {
 
 ---
 
+## 🛠️ 安装与准备 (Installation & Setup)
+
+### 1. 安装 MoonBit 工具链
+要构建和开发 MoonYara，请首先安装最新版本的 MoonBit 编译器工具链：
+- **Linux / macOS**:
+  ```bash
+  curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+  # 并根据终端提示将 ~/.moon/bin 添加至环境变量 PATH 中
+  ```
+- **Windows (PowerShell)**:
+  ```powershell
+  Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+  irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+  ```
+
+### 2. 依赖索引准备
+本项目依赖官方通用扩展库 `moonbitlang/x`。首次克隆仓库或更新工具链后，请在项目根目录运行以下命令更新包管理器索引并拉取依赖：
+```bash
+moon update
+```
+
+---
+
+## 🌐 浏览器与 WebAssembly 复现步骤 (Wasm & Browser Guide)
+
+MoonYara 的核心匹配引擎 `src` 是 **100% 纯 MoonBit 实现，无任何系统 FFI/IO 依赖 (Zero-FFI)**，可直接编译为 WebAssembly 字节码并在现代浏览器前端直接对用户上传的文件进行高速离线扫描，防止恶意木马和 Webshell 被上传至后端服务器。
+
+### 复现步骤：
+
+1. **编译为 JavaScript / WebAssembly 目标**
+   在项目根目录下，使用 `moon` 编译器将引擎打包编译为相应的目标字节码或脚本：
+   - 编译为 JavaScript 目标代码：
+     ```bash
+     moon build --target js
+     ```
+   - 编译为标准的 WebAssembly (wasm-gc) 目标字节码：
+     ```bash
+     moon build --target wasm-gc
+     ```
+
+2. **在浏览器或 Node.js 环境中引入**
+   编译完成后，核心匹配逻辑会被生成在 `_build` 目录中。您可以在前端网页中直接加载该 Wasm 模块，编写简单的 JavaScript 接口调用引擎。例如在 JS/TS 中：
+   ```javascript
+   import { compile_rules, scan_bytes } from './path/to/generated/moonyara.js';
+
+   // 编译 YARA 规则
+   const ruleText = `
+     rule MaliciousEval {
+       strings:
+         $eval = "eval("
+       condition:
+         $eval
+     }
+   `;
+   const compiledRules = compile_rules(ruleText);
+
+   // 用户在 input 文件上传框中选择的文件转换为 Uint8Array
+   const fileData = new Uint8Array([0x3c, 0x3f, 0x70, 0x68, 0x70, 0x20, 0x65, 0x76, 0x61, 0x6c, 0x28, 0x24, 0x5f, 0x47, 0x45, 0x54, 0x2e]);
+   
+   // 触发离线扫描
+   const matches = scan_bytes(compiledRules, fileData);
+
+   if (matches.length > 0) {
+     console.warn(`[ALERT] 检测到恶意特征匹配：\${matches[0].rule_name}`);
+     // 阻止文件向后端服务器上传
+   } else {
+     console.log("[CLEAN] 文件安全，允许上传。");
+   }
+   ```
+
+---
+
 ## 🛠️ 本地开发与贡献 (Development)
 
 请遵循 [CONTRIBUTING.md](CONTRIBUTING.md) 的说明：
