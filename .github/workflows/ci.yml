@@ -99,6 +99,10 @@ jobs:
           chmod +x "$HOME/.bin/moon"
           echo "$HOME/.bin" >> "$GITHUB_PATH"
 
+      - name: Moon Update Registry
+        run: |
+          moon update
+
       - name: Moon Check
         run: |
           moon fmt --deny-warn
