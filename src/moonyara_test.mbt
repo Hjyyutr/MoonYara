@@ -733,4 +733,3 @@ test "abnormal and invalid rule syntax handling" {
   }
   inspect(res4, content="true")
 }
-
